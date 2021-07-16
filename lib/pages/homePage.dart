@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:tech_demo/pages/chatPage.dart';
 import 'package:tech_demo/services/authservice.dart';
 
 class HomePage extends StatefulWidget {
@@ -19,7 +20,25 @@ class _HomePageState extends State<HomePage> {
   Widget addFriend(String friendId) {
     return Column(
       children: [
-        IconButton(onPressed: () {}, icon: Icon(CupertinoIcons.add)),
+        IconButton(
+            onPressed: () async {
+              // setState(() {
+              //   requestSent.add(friendId);
+              // });
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.userId)
+                  .update({
+                'req_sent': FieldValue.arrayUnion([friendId])
+              });
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(friendId)
+                  .update({
+                'req_rec': FieldValue.arrayUnion([widget.userId])
+              });
+            },
+            icon: Icon(CupertinoIcons.add)),
         Text(
           'Tap to connect',
           style: TextStyle(fontSize: 10),
@@ -33,8 +52,21 @@ class _HomePageState extends State<HomePage> {
       children: [
         IconButton(
             color: Colors.red,
-            onPressed: () {},
-            icon: Icon(CupertinoIcons.reply)),
+            onPressed: () async {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.userId)
+                  .update({
+                'req_sent': FieldValue.arrayRemove([friendId])
+              });
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(friendId)
+                  .update({
+                'req_rec': FieldValue.arrayRemove([widget.userId])
+              });
+            },
+            icon: Icon(CupertinoIcons.refresh)),
         Text(
           'Undo Request',
           style: TextStyle(fontSize: 10),
@@ -50,11 +82,49 @@ class _HomePageState extends State<HomePage> {
           children: [
             IconButton(
                 color: Colors.red,
-                onPressed: () {},
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.userId)
+                      .update({
+                    'req_rec': FieldValue.arrayRemove([friendId])
+                  });
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(friendId)
+                      .update({
+                    'req_sent': FieldValue.arrayRemove([widget.userId])
+                  });
+                },
                 icon: Icon(CupertinoIcons.person_badge_minus)),
             IconButton(
                 color: Colors.orange[400],
-                onPressed: () {},
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.userId)
+                      .update({
+                    'req_rec': FieldValue.arrayRemove([friendId])
+                  });
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(friendId)
+                      .update({
+                    'req_sent': FieldValue.arrayRemove([widget.userId])
+                  });
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.userId)
+                      .update({
+                    'friends': FieldValue.arrayUnion([friendId])
+                  });
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(friendId)
+                      .update({
+                    'friends': FieldValue.arrayUnion([widget.userId])
+                  });
+                },
                 icon: Icon(CupertinoIcons.person_badge_plus)),
           ],
         ),
@@ -66,12 +136,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget areFriends(String friendId) {
+  Widget areFriends(String friendId, String friendName, String friendNumber,
+      String friendPosition, String friendCompany) {
     return Column(
       children: [
         IconButton(
             color: Colors.orange[400],
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (BuildContext context) => Chat(
+                            userId: widget.userId,
+                            peerId: friendId,
+                            peerName: friendName,
+                            peerNumber: friendNumber,
+                            peerCompany: friendCompany,
+                            peerPosition: friendPosition,
+                          )));
+            },
             icon: Icon(CupertinoIcons.arrow_up_right)),
         Text(
           'Connected',
@@ -206,7 +289,11 @@ class _HomePageState extends State<HomePage> {
                                           friends.contains(
                                                   userDoc.get('userId'))
                                               ? areFriends(
-                                                  userDoc.get('userId'))
+                                                  userDoc.get('userId'),
+                                                  userDoc.get('name'),
+                                                  userDoc.get('phone'),
+                                                  userDoc.get('position'),
+                                                  userDoc.get('company'))
                                               : requestRec.contains(
                                                       userDoc.get('userId'))
                                                   ? acceptFriend(
